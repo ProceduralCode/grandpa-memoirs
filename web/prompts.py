@@ -31,6 +31,7 @@ def _context_blocks(stories_root):
 	"""Shared preamble used by both chat and generation prompts."""
 	system_md = _read(PROMPTS_DIR / '_system.md')
 	memoir_md = _read(SKILLS_DIR / 'write-memoir.md')
+	refresh_md = _read(SKILLS_DIR / 'refresh-plaud-login.md')
 	bio_md = _read(stories_root / 'bio.md', '_(bio.md not yet written — ask the user about himself when relevant rather than assuming)_')
 	summaries_md = _read(stories_root / 'recording-summaries.md', '_(no recording-summaries.md yet — generate with scripts/generate_summaries.py)_')
 	return [
@@ -47,6 +48,10 @@ def _context_blocks(stories_root):
 		'# Skill: write-memoir',
 		'',
 		memoir_md,
+		'',
+		'# Skill: refresh-plaud-login',
+		'',
+		refresh_md,
 	]
 
 def compose_chat_prompt(stories_root, conversation, new_user_message):
