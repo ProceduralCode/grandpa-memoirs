@@ -1,0 +1,31 @@
+# Secrets — never commit
+.plaud-token
+.env
+
+# Local per-machine config (commit config.example.json instead)
+config.json
+
+# Stories data lives outside the repo, but defensive in case someone moves it
+Grandpa Stories/
+.stories/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

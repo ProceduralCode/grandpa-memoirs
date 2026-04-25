@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Grandpa</title>
+	<link rel="stylesheet" href="styles.css">
+	<script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
+</head>
+<body>
+	<header id="app-header">
+		<button id="back-btn" class="icon-btn" hidden>←</button>
+		<h1 id="app-title">Home</h1>
+		<span id="status-indicator" class="status"></span>
+		<button id="sync-btn" class="secondary-btn" type="button">Sync</button>
+	</header>
+
+	<main>
+		<section id="home-screen" class="screen">
+			<div class="home-grid">
+				<button class="tile" data-nav="convList">Talk with Claude</button>
+				<button class="tile" data-nav="recordings">My Recordings</button>
+				<button class="tile" data-nav="memoirs">My Memoirs</button>
+				<button class="tile" data-nav="ideas">Ideas</button>
+			</div>
+		</section>
+
+		<section id="conv-list-screen" class="screen" hidden>
+			<button id="new-conv-btn" class="big-btn primary">+ New conversation</button>
+			<div class="section-heading">Your conversations</div>
+			<ul id="conv-list" class="item-list"></ul>
+			<div id="conv-list-empty" class="empty-msg" hidden>No conversations yet.</div>
+		</section>
+
+		<section id="conv-screen" class="screen" hidden>
+			<div id="messages" class="messages"></div>
+			<form id="send-form" class="composer">
+				<button id="mic-btn" class="mic-btn" type="button" title="Tap to dictate" hidden>🎤</button>
+				<textarea id="msg-input" placeholder="Type a message or tap the microphone..." rows="2"></textarea>
+				<button id="send-btn" class="big-btn primary" type="submit">Send</button>
+			</form>
+		</section>
+
+		<section id="recordings-screen" class="screen" hidden>
+			<ul id="recording-list" class="item-list"></ul>
+			<div id="recording-list-empty" class="empty-msg" hidden>No recordings yet. Hit Sync to pull new ones.</div>
+		</section>
+
+		<section id="recording-detail-screen" class="screen" hidden>
+			<div id="recording-detail-meta" class="detail-meta"></div>
+			<audio id="recording-audio" class="audio-player" controls preload="none"></audio>
+			<div id="recording-summary-wrap" class="summary-wrap" hidden>
+				<div class="section-heading">Summary</div>
+				<div id="recording-summary" class="markdown-content"></div>
+			</div>
+			<div id="recording-transcript-wrap" hidden>
+				<div class="section-heading">Transcript</div>
+				<div id="recording-transcript" class="transcript"></div>
+			</div>
+			<div id="recording-transcript-empty" class="empty-msg" hidden>Transcript not ready yet.</div>
+		</section>
+
+		<section id="memoirs-screen" class="screen" hidden>
+			<ul id="memoir-list" class="item-list"></ul>
+			<div id="memoir-list-empty" class="empty-msg" hidden>No memoirs yet. They'll show up here as they're written.</div>
+		</section>
+
+		<section id="memoir-detail-screen" class="screen" hidden>
+			<div id="memoir-detail-content" class="markdown-content"></div>
+		</section>
+
+		<section id="ideas-screen" class="screen" hidden>
+			<div class="ideas-toolbar">
+				<span id="ideas-meta" class="ideas-meta"></span>
+				<button id="ideas-regen-btn" class="secondary-btn" type="button">Generate more</button>
+			</div>
+			<div id="ideas-content" class="markdown-content"></div>
+			<div id="ideas-empty" class="empty-msg" hidden>No ideas yet — tap Regenerate to produce the first set.</div>
+		</section>
+	</main>
+
+	<script src="app.js"></script>
+</body>
+</html>

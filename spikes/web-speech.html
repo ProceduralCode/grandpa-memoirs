@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Web Speech API Spike</title>
+	<style>
+		* { box-sizing: border-box; }
+		html, body {
+			margin: 0;
+			padding: 0;
+			background: #1a1a1a;
+			color: #f0f0f0;
+			font-family: system-ui, -apple-system, sans-serif;
+			height: 100%;
+		}
+		body {
+			display: flex;
+			flex-direction: column;
+			padding: 24px;
+			gap: 24px;
+		}
+		h1 { margin: 0; font-size: 28px; font-weight: 600; }
+		.status {
+			padding: 12px 16px;
+			background: #2a2a2a;
+			border-radius: 8px;
+			font-size: 18px;
+			min-height: 24px;
+		}
+		.status.error { background: #4a1a1a; color: #ffb0b0; }
+		.status.listening { background: #1a3a1a; color: #b0ffb0; }
+		button {
+			font-size: 32px;
+			font-weight: 600;
+			padding: 32px;
+			min-height: 120px;
+			background: #3a6ea5;
+			color: white;
+			border: none;
+			border-radius: 16px;
+			cursor: pointer;
+			touch-action: manipulation;
+		}
+		button:active { background: #2a5a8a; }
+		button.listening { background: #a53a3a; }
+		button.listening:active { background: #8a2a2a; }
+		.transcript {
+			flex: 1;
+			padding: 24px;
+			background: #2a2a2a;
+			border-radius: 12px;
+			font-size: 24px;
+			line-height: 1.5;
+			overflow-y: auto;
+			min-height: 200px;
+			white-space: pre-wrap;
+		}
+		.interim { color: #888; font-style: italic; }
+		.controls { display: flex; gap: 16px; }
+		.clear {
+			font-size: 20px;
+			padding: 16px 24px;
+			min-height: 60px;
+			background: #555;
+			flex: 0 0 auto;
+		}
+		.clear:active { background: #444; }
+	</style>
+</head>
+<body>
+	<h1>Web Speech API Spike</h1>
+	<div id="status" class="status">Ready. Tap the big button to start listening.</div>
+	<button id="micBtn">🎤 Start Listening</button>
+	<div class="controls">
+		<button id="clearBtn" class="clear">Clear</button>
+	</div>
+	<div id="transcript" class="transcript"></div>
+
+	<script>
+		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+		const statusEl = document.getElementById('status');
+		const micBtn = document.getElementById('micBtn');
+		const clearBtn = document.getElementById('clearBtn');
+		const transcriptEl = document.getElementById('transcript');
+
+		let recognition = null;
+		let listening = false;
+		let finalText = '';
+
+		function setStatus(msg, kind) {
+			statusEl.textContent = msg;
+			statusEl.className = 'status' + (kind ? ' ' + kind : '');
+		}
+
+		function render(interim) {
+			transcriptEl.innerHTML = '';
+			if (finalText) {
+				const finalNode = document.createTextNode(finalText);
+				transcriptEl.appendChild(finalNode);
+			}
+			if (interim) {
+				const span = document.createElement('span');
+				span.className = 'interim';
+				span.textContent = (finalText ? ' ' : '') + interim;
+				transcriptEl.appendChild(span);
+			}
+		}
+
+		if (!SpeechRecognition) {
+			setStatus('Web Speech API NOT supported in this browser. Try Chrome or Edge.', 'error');
+			micBtn.disabled = true;
+		} else {
+			recognition = new SpeechRecognition();
+			recognition.continuous = true;
+			recognition.interimResults = true;
+			recognition.lang = 'en-US';
+
+			recognition.onstart = () => {
+				listening = true;
+				micBtn.textContent = '⏹ Stop Listening';
+				micBtn.classList.add('listening');
+				setStatus('Listening… speak now.', 'listening');
+			};
+
+			recognition.onend = () => {
+				listening = false;
+				micBtn.textContent = '🎤 Start Listening';
+				micBtn.classList.remove('listening');
+				setStatus('Stopped. Tap to listen again.');
+			};
+
+			recognition.onerror = (e) => {
+				setStatus('Error: ' + e.error + (e.message ? ' — ' + e.message : ''), 'error');
+			};
+
+			recognition.onresult = (event) => {
+				let interim = '';
+				for (let i = event.resultIndex; i < event.results.length; i++) {
+					const result = event.results[i];
+					if (result.isFinal) {
+						finalText += (finalText ? ' ' : '') + result[0].transcript.trim();
+					} else {
+						interim += result[0].transcript;
+					}
+				}
+				render(interim);
+			};
+
+			micBtn.addEventListener('click', () => {
+				if (listening) {
+					recognition.stop();
+				} else {
+					try {
+						recognition.start();
+					} catch (e) {
+						setStatus('Could not start: ' + e.message, 'error');
+					}
+				}
+			});
+
+			clearBtn.addEventListener('click', () => {
+				finalText = '';
+				render('');
+			});
+		}
+	</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+{
+	"stories_root": "C:/Users/<your-windows-username>/Documents/Grandpa Stories",
+	"chrome_profile_email": "<substring-of-the-google-email-signed-in-to-plaud>",
+	"chrome_profile_dirname": null,
+	"region": "us",
+	"claude_path": null
+}
