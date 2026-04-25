@@ -19,18 +19,10 @@ from sync.chrome_token import (
 
 def main():
 	config = load_config()
-	print("=" * 60)
-	print("Refreshing Plaud token")
-	print("=" * 60)
-	print()
-	print("IMPORTANT: Close every Chrome window before continuing.")
-	print("Check the system tray and Task Manager for stray chrome.exe.")
-	print()
-	input("Press Enter when Chrome is closed... ")
-
+	print("Refreshing Plaud token...")
 	invalidate_token_cache(TOKEN_CACHE_PATH)
 	try:
-		token, source = resolve_plaud_token(
+		_, source = resolve_plaud_token(
 			cache_path=TOKEN_CACHE_PATH,
 			email_hint=config.get('chrome_profile_email'),
 			profile_dirname=config.get('chrome_profile_dirname'),
