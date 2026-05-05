@@ -429,16 +429,23 @@ async def send_message(conv_id: str, req: MessageRequest):
 		# the client; other deltas (thinking, tool use) are ignored for now.
 		proc = None
 		try:
+			# Pipe the prompt via stdin instead of argv. The composed prompt
+			# (system + bio + recording-summaries + skills + history + new msg)
+			# routinely exceeds 30KB, which trips Windows' ~32KB command-line
+			# argument limit ([WinError 206]).
 			proc = await asyncio.create_subprocess_exec(
-				claude, '-p', prompt,
+				claude, '-p',
 				'--output-format', 'stream-json',
 				'--include-partial-messages',
 				'--verbose',
 				'--permission-mode', 'acceptEdits',
 				cwd=str(stories_root()),
+				stdin=asyncio.subprocess.PIPE,
 				stdout=asyncio.subprocess.PIPE,
 				stderr=asyncio.subprocess.PIPE,
 			)
+			proc.stdin.write(prompt.encode('utf-8'))
+			proc.stdin.close()
 			full = []
 			text_blocks_seen = 0
 			while True:

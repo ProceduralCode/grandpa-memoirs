@@ -100,9 +100,11 @@ def generate(stories_root):
 		print(f"  (feeding back {len(prior)} prior questions to avoid)")
 
 	print(f"Running claude to generate leading questions (~{len(prompt)} chars of context)...")
+	# Pipe prompt via stdin to avoid Windows' ~32KB command-line argument limit.
 	result = subprocess.run(
-		[claude, '-p', prompt],
+		[claude, '-p'],
 		cwd=str(stories_root),
+		input=prompt,
 		capture_output=True,
 		text=True,
 		timeout=CLAUDE_TIMEOUT_SECONDS,

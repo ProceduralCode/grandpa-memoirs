@@ -1,5 +1,9 @@
-"""One-click launcher. Starts the backend if it's not already running and
-opens the default browser to the app. Idempotent — double-tap doesn't stack."""
+"""One-click launcher.
+
+Self-healing: detects stuck backends from prior runs and cleans them up.
+Source of truth is "what's actually listening on port 8000," verified to be a
+python.exe process so we never kill anything unrelated.
+"""
 import socket
 import subprocess
 import sys
@@ -29,6 +33,68 @@ def health_ok():
 	except (urllib.error.URLError, OSError, TimeoutError):
 		return False
 
+def pid_on_port(port):
+	"""Return the PID listening on the given port, or None."""
+	try:
+		result = subprocess.run(
+			['netstat', '-ano', '-p', 'tcp'],
+			capture_output=True, text=True, timeout=5,
+		)
+	except (subprocess.TimeoutExpired, OSError):
+		return None
+	needle = f':{port}'
+	for line in result.stdout.splitlines():
+		if needle in line and 'LISTENING' in line:
+			parts = line.split()
+			if parts and parts[-1].isdigit():
+				return int(parts[-1])
+	return None
+
+def process_image_name(pid):
+	"""Return tasklist's image name for the PID (e.g. 'python.exe'), or None
+	if the process doesn't exist."""
+	try:
+		result = subprocess.run(
+			['tasklist', '/FI', f'PID eq {pid}', '/FO', 'CSV', '/NH'],
+			capture_output=True, text=True, timeout=5,
+		)
+	except (subprocess.TimeoutExpired, OSError):
+		return None
+	line = (result.stdout or '').strip()
+	if not line or line.startswith('INFO:'):
+		return None
+	# CSV: "image","pid","session","sess#","mem"
+	first = line.split(',', 1)[0].strip().strip('"')
+	return first or None
+
+def kill_pid(pid):
+	try:
+		subprocess.run(['taskkill', '/F', '/PID', str(pid)], capture_output=True, timeout=5)
+		return True
+	except (subprocess.TimeoutExpired, OSError):
+		return False
+
+def reclaim_port_if_orphan(port):
+	"""If something's listening on `port` but not responding to /api/health,
+	verify it's a python.exe (i.e. our server) and kill it. Returns True if
+	the port is now free (or already was), False if held by something we
+	shouldn't touch."""
+	pid = pid_on_port(port)
+	if pid is None:
+		return True
+	if health_ok():
+		return False  # healthy server, nothing to reclaim
+	name = process_image_name(pid)
+	if not name:
+		return True  # PID disappeared between checks
+	if name.lower() != 'python.exe':
+		print(f"Port {port} is held by '{name}' (PID {pid}). That's not our backend; refusing to touch it.")
+		return False
+	print(f"Stale backend on port {port} (PID {pid}, {name}). Killing it.")
+	kill_pid(pid)
+	time.sleep(1.5)  # let the OS release the socket
+	return True
+
 def start_backend():
 	flags = 0
 	exe = sys.executable
@@ -55,11 +121,17 @@ def wait_for_health(deadline_seconds):
 def main():
 	if is_port_listening(HOST, PORT) and health_ok():
 		print(f"Backend already running on port {PORT}; opening browser.")
-	else:
-		print(f"Starting backend on port {PORT}...")
-		start_backend()
-		if not wait_for_health(START_WAIT_SECONDS):
-			print(f"Backend didn't come up within {START_WAIT_SECONDS}s. Opening browser anyway; check the server console for errors.")
+		webbrowser.open(URL)
+		return
+
+	if not reclaim_port_if_orphan(PORT):
+		print("Cannot start: port held by an unrelated process. Aborting.")
+		return
+
+	print(f"Starting backend on port {PORT}...")
+	start_backend()
+	if not wait_for_health(START_WAIT_SECONDS):
+		print(f"Backend didn't come up within {START_WAIT_SECONDS}s. Opening browser anyway; check the server console for errors.")
 	webbrowser.open(URL)
 
 if __name__ == '__main__':
