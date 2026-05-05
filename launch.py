@@ -74,6 +74,62 @@ def kill_pid(pid):
 	except (subprocess.TimeoutExpired, OSError):
 		return False
 
+def head_commit():
+	"""Current git HEAD short hash, or None if not a git checkout / git missing."""
+	try:
+		r = subprocess.run(
+			['git', '-C', str(PROJECT_ROOT), 'rev-parse', 'HEAD'],
+			capture_output=True, text=True, timeout=5,
+		)
+	except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+		return None
+	if r.returncode != 0:
+		return None
+	return (r.stdout or '').strip() or None
+
+def try_auto_update():
+	"""Best-effort `git pull --ff-only`. Returns True if the working tree
+	actually moved to a new commit. Failures (no network, no git, local
+	modifications, not a git checkout) are silent — we just launch with
+	whatever code is currently on disk."""
+	if not (PROJECT_ROOT / '.git').exists():
+		return False
+	before = head_commit()
+	if not before:
+		return False
+	try:
+		subprocess.run(
+			['git', '-C', str(PROJECT_ROOT), 'pull', '--ff-only'],
+			capture_output=True, text=True, timeout=10,
+		)
+	except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+		return False
+	after = head_commit()
+	return bool(after and after != before)
+
+def shutdown_backend_if_running():
+	"""Politely tell the running backend to exit (POST /api/shutdown), with a
+	taskkill fallback. Used after an auto-update brings new code so the next
+	start_backend picks up the new revision."""
+	pid = pid_on_port(PORT)
+	if not pid:
+		return
+	try:
+		req = urllib.request.Request(f'{URL}api/shutdown', method='POST', data=b'')
+		urllib.request.urlopen(req, timeout=3).read()
+	except (urllib.error.URLError, OSError, TimeoutError):
+		pass
+	# Wait for graceful exit
+	for _ in range(20):
+		if pid_on_port(PORT) != pid:
+			return
+		time.sleep(0.25)
+	# Still there — only kill if it's our python process
+	name = process_image_name(pid)
+	if name and name.lower() == 'python.exe':
+		kill_pid(pid)
+		time.sleep(1)
+
 def reclaim_port_if_orphan(port):
 	"""If something's listening on `port` but not responding to /api/health,
 	verify it's a python.exe (i.e. our server) and kill it. Returns True if
@@ -119,6 +175,12 @@ def wait_for_health(deadline_seconds):
 	return False
 
 def main():
+	# Check for updates from origin first. If new commits arrived, shut down
+	# any running backend so the fresh start picks up the new code.
+	if try_auto_update():
+		print("Updated to a new revision from origin. Restarting backend.")
+		shutdown_backend_if_running()
+
 	if is_port_listening(HOST, PORT) and health_ok():
 		print(f"Backend already running on port {PORT}; opening browser.")
 		webbrowser.open(URL)
